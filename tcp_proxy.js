@@ -13,6 +13,10 @@ function formatNowAsName() {
     return formatNow().replace(/:/g, '-').replace(' ', '_')
 }
 
+function formatLogFilename(fromInfo, toInfo) {
+    return `log-${formatNowAsName()}-9999-${fromInfo}-${toInfo}.log`
+}
+
 function connectionProcessor(localSocket) 
 {
   var targetPort = 21
@@ -25,10 +29,14 @@ function connectionProcessor(localSocket)
   var originatorInfo = formatAddress(localSocket.remoteAddress, localSocket.remotePort)
   var targetInfo = formatAddress(targetHost, targetPort)
 
-  console.log(`Local connection accepted on ${proxyInfo} from=${originatorInfo}`)
+  consoleFilename = formatLogFilename(originatorInfo, targetInfo)
+  connectionConsole = new console.Console({stdout: fs.createWriteStream(consoleFilename)})
+
+  console.log(`Local connection accepted on ${proxyInfo} from=${originatorInfo} ${consoleFilename}`)
 
   originatorToProxyPrefix = `${originatorInfo} to ${proxyInfo} >>`
-  console.log(`${formatNow()} ${originatorToProxyPrefix} Reading from ${originatorInfo} by ${proxyInfo} started`)
+
+  connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Reading from ${originatorInfo} by ${proxyInfo} started`)
 
   originatorToProxyPacketN = 0
   originatorToProxyOffset = 0
@@ -38,12 +46,12 @@ function connectionProcessor(localSocket)
 
   localSocket.on('data', (buffer) => {
     n = buffer.length
-    console.log(`${formatNow()} ${originatorToProxyPrefix} Received (packet ${originatorToProxyPacketN}, offset ${originatorToProxyOffset}) ${n} byte(s) from ${originatorInfo}`)
+    connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Received (packet ${originatorToProxyPacketN}, offset ${originatorToProxyOffset}) ${n} byte(s) from ${originatorInfo}`)
     remoteSocket.write(buffer, 0, () => {
-      console.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${originatorToProxyPacketN}) to ${targetInfo}`)
+      connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${originatorToProxyPacketN}) to ${targetInfo}`)
       fs.appendFile(originatorFile, buffer, (error) => {
         if (error) throw error
-        console.log(`${formatNow()} ${originatorToProxyPrefix} Saved (packet ${originatorToProxyPacketN}) to ${originatorFile}`)
+        connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Saved (packet ${originatorToProxyPacketN}) to ${originatorFile}`)
       })
       originatorToProxyPacketN += 1
       originatorToProxyOffset += n
@@ -51,16 +59,20 @@ function connectionProcessor(localSocket)
   })
 
   localSocket.on('end', () => {
-    console.log(`${formatNow()} ${originatorToProxyPrefix} Disconnected`)
+    connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Disconnected`)
   })
 
   localSocket.on('close', (hadError) => {
-    console.log(`${formatNow()} ${originatorToProxyPrefix} Closed ${hadError ? ' with an error':''}`)
+    connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Closed ${hadError ? ' with an error':''}`)
+    console.log(`Connection finished on ${proxyInfo} from=${originatorInfo}`)
   })
 
   localSocket.on('error', (error) => {
-    console.log(`${formatNow()} ${originatorToProxyPrefix} ERROR: [${error}]`)
+    connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} ERROR: [${error}]`)
   })
+
+  // targetToProxyLogFilename = formatLogFilename(targetInfo, proxyInfo)
+  // targetToProxyConsole = new console.Console({stdout: fs.createWriteStream(targetToProxyLogFilename)})
   
   targetToProxyPrefix = `${targetInfo} to ${proxyInfo} <<`
   targetToProxyPacketN = 0
@@ -71,22 +83,22 @@ function connectionProcessor(localSocket)
 
   var remoteSocket = new net.Socket()
   remoteSocket.connect(targetPort, targetHost, function() {
-    console.log(`${formatNow()} ${targetToProxyPrefix} Reading from ${targetInfo} by ${proxyInfo}`)
+    connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Reading from ${targetInfo} by ${proxyInfo}`)
   })
 
   remoteSocket.on('ready', () => {
-    console.log(`${formatNow()} ${targetToProxyPrefix} Remote target ${targetInfo} is ready, resume reading from originator ${originatorInfo}`)
+    connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Remote target ${targetInfo} is ready, resume reading from originator ${originatorInfo}`)
     localSocket.resume() 
   })
 
   remoteSocket.on('data', function(buffer) {
     n = buffer.length
-    console.log(`${formatNow()} ${targetToProxyPrefix} Received (packet ${targetToProxyPacketN}, offset ${targetToProxyOffset}) ${n} byte(s) from ${targetInfo}`)
+    connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Received (packet ${targetToProxyPacketN}, offset ${targetToProxyOffset}) ${n} byte(s) from ${targetInfo}`)
     localSocket.write(buffer, 0, () => {
-      console.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${targetToProxyPacketN}) to ${originatorInfo}`)
+      connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${targetToProxyPacketN}) to ${originatorInfo}`)
       fs.appendFile(targetFile, buffer, (error) => {
         if (error) throw error
-        console.log(`${formatNow()} ${targetToProxyPrefix} Saved (packet ${targetToProxyPacketN}) to ${targetFile}`)
+        connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Saved (packet ${targetToProxyPacketN}) to ${targetFile}`)
       })
       targetToProxyPacketN += 1
       targetToProxyOffset += n
@@ -95,16 +107,16 @@ function connectionProcessor(localSocket)
   })
 
   remoteSocket.on('end', () => {
-    console.log(`${formatNow()} ${targetToProxyPrefix} Disconnected`)
+    connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Disconnected`)
   })
 
   remoteSocket.on('close', function(hadError) {
-    console.log(`${formatNow()} ${targetToProxyPrefix} Closed ${hadError ? ' with an error':''}`)
+    connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Closed ${hadError ? ' with an error':''}`)
     localSocket.end()
   })
 
   remoteSocket.on('error', (error) => {
-    console.log(`${formatNow()} ${targetToProxyPrefix} ERROR: [${error}]`)
+    connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} ERROR: [${error}]`)
   })
 }
 
