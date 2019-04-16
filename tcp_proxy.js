@@ -1,59 +1,8 @@
 const net = require('net')
 const fs = require('fs')
+const hexify = require('./hexify')
 
 var connections_n = 0
-var hexify_width = 16
-var offset_width = 8
-
-var hex_header_separator = 
-  '-'.repeat(offset_width) + ' ' + 
-  '-'.repeat(offset_width) + ' ' + 
-  '-'.repeat(hexify_width*3-1)
-
-var hex_header_title = 
-  '#'.repeat(offset_width) + ' ' + 
-  '#'.repeat(offset_width) + ' '
-
-for (let i = 0; i < hexify_width; ++i) {
-  hex_header_title += i.toString(16).padStart(2, '0')
-  if (i < hexify_width - 1)
-    hex_header_title += '.'
-}
-
-function hexify(buffer, offset) {
-  let lines = [
-    hex_header_title.toUpperCase(),
-    hex_header_separator,
-  ]
-
-  for (let i = 0; i < buffer.length; i += hexify_width) {
-    let address = (offset + i).toString(16).padStart(offset_width, '0')
-    let packet_address = i.toString(16).padStart(offset_width, '0')
-    let block = buffer.slice(i, i + hexify_width)
-    let hexArray = []
-    let asciiArray = []
-    let padding = ''
-
-    for (let value of block) {
-      hexArray.push(value.toString(16).padStart(2, '0'))
-      asciiArray.push(value >= 0x20 && value < 0x7f ? String.fromCharCode(value) : '.')
-    }
-
-    if (hexArray.length < hexify_width) {
-      let space = hexify_width - hexArray.length
-      padding = ' '.repeat(space * 3)
-    }
-
-    let hexString = hexArray.join(' ')
-
-    let asciiString = asciiArray.join('')
-    let line = `${address.toUpperCase()} ${packet_address.toUpperCase()} ${hexString.toUpperCase()} ${padding}|${asciiString}|`
-
-    lines.push(line)
-  }
-
-  return lines.join('\n')
-}
 
 function formatAddress(ip, port) {
   return ip.replace("::ffff:", "") + "(" + port + ")"
@@ -112,7 +61,7 @@ function connectionProcessor(localSocket)
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Received (packet ${originatorToProxyPacketN}, offset ${originatorToProxyOffset}) ${n} byte(s) from ${originatorInfo}`)
     remoteSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${this.packet_n}) to ${targetInfo}`)
-      connectionConsole.log(hexify(buffer, this.offset))
+      connectionConsole.log(hexify.hexify(buffer, this.offset))
       fs.appendFileSync(originatorFilename, buffer);
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Saved (packet ${this.packet_n})`)
     }.bind({
@@ -157,7 +106,7 @@ function connectionProcessor(localSocket)
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Received (packet ${targetToProxyPacketN}, offset ${targetToProxyOffset}) ${n} byte(s) from ${targetInfo}`)
     localSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${this.packet_n}) to ${originatorInfo}`)
-      connectionConsole.log(hexify(buffer, this.offset))
+      connectionConsole.log(hexify.hexify(buffer, this.offset))
       fs.appendFileSync(targetFilename, buffer)
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Saved (packet ${this.packet_n})`)
     }.bind({
