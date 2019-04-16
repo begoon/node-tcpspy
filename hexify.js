@@ -16,6 +16,13 @@ for (let i = 0; i < hexify_width; ++i) {
     hex_header_title += '.'
 }
 
+var hexs = new Array(256)
+var printables = new Array(256)
+for (let i = 0; i < hexs.length; ++i) {
+  hexs[i] = i.toString(16).toUpperCase().padStart(2, '0')
+  printables[i] = i >= 0x20 && i < 0x7f ? String.fromCharCode(i) : '.'
+}
+
 function hexify(buffer, offset) {
   let lines = [
     hex_header_title.toUpperCase(),
@@ -31,8 +38,8 @@ function hexify(buffer, offset) {
     let padding = ''
 
     for (let value of block) {
-      hexArray.push(value.toString(16).padStart(2, '0'))
-      asciiArray.push(value >= 0x20 && value < 0x7f ? String.fromCharCode(value) : '.')
+      hexArray.push(hexs[value])
+      asciiArray.push(printables[value])
     }
 
     if (hexArray.length < hexify_width) {
