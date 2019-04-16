@@ -23,6 +23,16 @@ for (let i = 0; i < hexs.length; ++i) {
   printables[i] = i >= 0x20 && i < 0x7f ? String.fromCharCode(i) : '.'
 }
 
+var offset_hexs = new Array(0x10000)
+for (let i = 0; i < offset_hexs.length; ++i) {
+  offset_hexs[i] = i.toString(16).toUpperCase().padStart(offset_width, '0')
+}
+
+var offset_hex_halves = new Array(offset_hexs.length)
+for (let i = 0; i < offset_hex_halves.length; ++i) {
+  offset_hex_halves[i] = i.toString(16).toUpperCase().padStart(offset_width / 2, '0')
+}
+
 function hexify(buffer, offset) {
   let lines = [
     hex_header_title.toUpperCase(),
@@ -30,9 +40,18 @@ function hexify(buffer, offset) {
   ]
 
   for (let i = 0; i < buffer.length; i += hexify_width) {
-    let address = (offset + i).toString(16).padStart(offset_width, '0')
-    let packet_address = i.toString(16).padStart(offset_width, '0')
+    let offset_i = offset + i
+
+    let address = offset_i < offset_hexs.length 
+      ? offset_hexs[offset_i] 
+      : (offset_hex_halves[offset_i >> 16] + offset_hex_halves[offset_i & 0xffff])
+
+    let packet_address = i < offset_hexs.length 
+      ? offset_hexs[i] 
+      : (offset_hex_halves[i >> 16] + offset_hex_halves[i & 0xffff])
+    
     let block = buffer.slice(i, i + hexify_width)
+
     let hexArray = []
     let asciiArray = []
     let padding = ''
@@ -42,10 +61,7 @@ function hexify(buffer, offset) {
       asciiArray.push(printables[value])
     }
 
-    if (hexArray.length < hexify_width) {
-      let space = hexify_width - hexArray.length
-      padding = ' '.repeat(space * 3)
-    }
+    padding = ' '.repeat((hexify_width - hexArray.length) * 3)
 
     let hexString = hexArray.join(' ')
 
