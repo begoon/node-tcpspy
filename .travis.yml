@@ -1,0 +1,12 @@
+dist: xenial
+language: node_js
+node_js:
+  - "10"
+script: 
+  - node tcp_proxy_test.js
+notifications:
+  email:
+    recipients:
+      - ademin@gmail.com
+    on_success: always
+    on_failure: always
