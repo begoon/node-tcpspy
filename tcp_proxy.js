@@ -1,27 +1,91 @@
 const net = require('net')
 const fs = require('fs')
 
+var connections_n = 0
+var hexify_width = 16
+var offset_width = 8
+
+var hex_header_separator = 
+  '-'.repeat(offset_width) + ' ' + 
+  '-'.repeat(offset_width) + ' ' + 
+  '-'.repeat(hexify_width*3-1)
+
+var hex_header_title = 
+  '#'.repeat(offset_width) + ' ' + 
+  '#'.repeat(offset_width) + ' '
+
+for (let i = 0; i < hexify_width; ++i) {
+  hex_header_title += i.toString(16).padStart(2, '0')
+  if (i < hexify_width - 1)
+    hex_header_title += '.'
+}
+
+function hexify(buffer, offset) {
+  let lines = [
+    hex_header_title.toUpperCase(),
+    hex_header_separator,
+  ]
+
+  for (let i = 0; i < buffer.length; i += hexify_width) {
+    let address = (offset + i).toString(16).padStart(offset_width, '0')
+    let packet_address = i.toString(16).padStart(offset_width, '0')
+    let block = buffer.slice(i, i + hexify_width)
+    let hexArray = []
+    let asciiArray = []
+    let padding = ''
+
+    for (let value of block) {
+      hexArray.push(value.toString(16).padStart(2, '0'))
+      asciiArray.push(value >= 0x20 && value < 0x7f ? String.fromCharCode(value) : '.')
+    }
+
+    if (hexArray.length < hexify_width) {
+      let space = hexify_width - hexArray.length
+      padding = ' '.repeat(space * 3)
+    }
+
+    let hexString = hexArray.join(' ')
+
+    let asciiString = asciiArray.join('')
+    let line = `${address.toUpperCase()} ${packet_address.toUpperCase()} ${hexString.toUpperCase()} ${padding}|${asciiString}|`
+
+    lines.push(line)
+  }
+
+  return lines.join('\n')
+}
+
 function formatAddress(ip, port) {
-    return ip.replace("::ffff:", "") + "(" + port + ")"   
+  return ip.replace("::ffff:", "") + "(" + port + ")"
 }
 
 function formatNow() {
-    return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
+  return new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '')
 }
 
 function formatNowAsName() {
-    return formatNow().replace(/:/g, '-').replace(' ', '_')
+  return formatNow().replace(/[:-]/g, '.').replace(' ', '-')
 }
 
-function formatLogFilename(fromInfo, toInfo) {
-    return `log-${formatNowAsName()}-9999-${fromInfo}-${toInfo}.log`
+function formatLogFilename(prefix, fromInfo, toInfo, conn_n) {
+  return `${prefix}-${formatNowAsName()}-#${conn_n}-${fromInfo}-${toInfo}.log`
 }
 
-function connectionProcessor(localSocket) 
+function formatConsoleFilename(fromInfo, toInfo, conn_n) {
+  return formatLogFilename('log', fromInfo, toInfo, conn_n)
+}
+
+function formatBinaryLogFilename(fromInfo, toInfo, conn_n) {
+  return formatLogFilename('log-raw', fromInfo, toInfo, conn_n)
+}
+
+function connectionProcessor(localSocket)
 {
+  var conn_n = connections_n
+  connections_n += 1
+
   var targetPort = 21
   var targetHost = 'speedtest.tele2.net'
-
   targetPort = 80
   targetHost = 'ipv4.download.thinkbroadband.com'
 
@@ -29,33 +93,34 @@ function connectionProcessor(localSocket)
   var originatorInfo = formatAddress(localSocket.remoteAddress, localSocket.remotePort)
   var targetInfo = formatAddress(targetHost, targetPort)
 
-  consoleFilename = formatLogFilename(originatorInfo, targetInfo)
-  connectionConsole = new console.Console({stdout: fs.createWriteStream(consoleFilename)})
+  var consoleFilename = formatConsoleFilename(originatorInfo, targetInfo, conn_n)
+  var connectionConsole = new console.Console({stdout: fs.createWriteStream(consoleFilename)})
 
-  console.log(`Local connection accepted on ${proxyInfo} from=${originatorInfo} ${consoleFilename}`)
+  console.log(`Connection #${conn_n} accepted on ${proxyInfo} from=${originatorInfo} ${consoleFilename}`)
 
-  originatorToProxyPrefix = `${originatorInfo} to ${proxyInfo} >>`
+  var originatorToProxyPrefix = `${originatorInfo} to ${proxyInfo} >>`
 
   connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Reading from ${originatorInfo} by ${proxyInfo} started`)
 
-  originatorToProxyPacketN = 0
-  originatorToProxyOffset = 0
+  var originatorToProxyPacketN = 0
+  var originatorToProxyOffset = 0
 
-  originatorFile = "originator"
-  fs.unlink(originatorFile, (error) => {})
+  var originatorFilename = formatBinaryLogFilename(proxyInfo, originatorInfo, conn_n)
 
-  localSocket.on('data', (buffer) => {
+  localSocket.on('data', function(buffer) {
     n = buffer.length
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Received (packet ${originatorToProxyPacketN}, offset ${originatorToProxyOffset}) ${n} byte(s) from ${originatorInfo}`)
-    remoteSocket.write(buffer, 0, () => {
-      connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${originatorToProxyPacketN}) to ${targetInfo}`)
-      fs.appendFile(originatorFile, buffer, (error) => {
-        if (error) throw error
-        connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Saved (packet ${originatorToProxyPacketN}) to ${originatorFile}`)
-      })
-      originatorToProxyPacketN += 1
-      originatorToProxyOffset += n
-    })
+    remoteSocket.write(buffer, 0, function() {
+      connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${this.packet_n}) to ${targetInfo}`)
+      connectionConsole.log(hexify(buffer, this.offset))
+      fs.appendFileSync(originatorFilename, buffer);
+      connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Saved (packet ${this.packet_n})`)
+    }.bind({
+      packet_n: originatorToProxyPacketN,
+      offset: originatorToProxyOffset,
+    }))
+    originatorToProxyPacketN += 1
+    originatorToProxyOffset += n
   })
 
   localSocket.on('end', () => {
@@ -64,22 +129,18 @@ function connectionProcessor(localSocket)
 
   localSocket.on('close', (hadError) => {
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Closed ${hadError ? ' with an error':''}`)
-    console.log(`Connection finished on ${proxyInfo} from=${originatorInfo}`)
+    console.log(`Connection #${conn_n} finished on ${proxyInfo} from=${originatorInfo}`)
   })
 
   localSocket.on('error', (error) => {
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} ERROR: [${error}]`)
   })
 
-  // targetToProxyLogFilename = formatLogFilename(targetInfo, proxyInfo)
-  // targetToProxyConsole = new console.Console({stdout: fs.createWriteStream(targetToProxyLogFilename)})
-  
-  targetToProxyPrefix = `${targetInfo} to ${proxyInfo} <<`
-  targetToProxyPacketN = 0
-  targetToProxyOffset = 0
+  var targetToProxyPrefix = `${targetInfo} to ${proxyInfo} <<`
+  var targetToProxyPacketN = 0
+  var targetToProxyOffset = 0
 
-  targetFile = "target"
-  fs.unlink(originatorFile, (error) => {})
+  var targetFilename = formatBinaryLogFilename(proxyInfo, targetInfo, conn_n)
 
   var remoteSocket = new net.Socket()
   remoteSocket.connect(targetPort, targetHost, function() {
@@ -88,22 +149,23 @@ function connectionProcessor(localSocket)
 
   remoteSocket.on('ready', () => {
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Remote target ${targetInfo} is ready, resume reading from originator ${originatorInfo}`)
-    localSocket.resume() 
+    localSocket.resume()
   })
 
   remoteSocket.on('data', function(buffer) {
     n = buffer.length
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Received (packet ${targetToProxyPacketN}, offset ${targetToProxyOffset}) ${n} byte(s) from ${targetInfo}`)
-    localSocket.write(buffer, 0, () => {
-      connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${targetToProxyPacketN}) to ${originatorInfo}`)
-      fs.appendFile(targetFile, buffer, (error) => {
-        if (error) throw error
-        connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Saved (packet ${targetToProxyPacketN}) to ${targetFile}`)
-      })
-      targetToProxyPacketN += 1
-      targetToProxyOffset += n
-    })
-
+    localSocket.write(buffer, 0, function() {
+      connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${this.packet_n}) to ${originatorInfo}`)
+      connectionConsole.log(hexify(buffer, this.offset))
+      fs.appendFileSync(targetFilename, buffer)
+      connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Saved (packet ${this.packet_n})`)
+    }.bind({
+      packet_n: targetToProxyPacketN,
+      offset: targetToProxyOffset,
+    }))
+    targetToProxyPacketN += 1
+    targetToProxyOffset += n
   })
 
   remoteSocket.on('end', () => {
