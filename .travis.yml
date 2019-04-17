@@ -4,6 +4,7 @@ node_js:
   - "10"
 script: 
   - node tcp_proxy_test.js
+  - node hexify_benchmark.js
 notifications:
   email:
     recipients:
