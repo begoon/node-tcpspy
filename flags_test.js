@@ -44,8 +44,8 @@ const empty_argv = ['n', 'e'];
   const argv = empty_argv.concat(['-l=1', '-a=h', '-p=2']);
   const { log_hexify, log_binary } = flags.parse(argv);
 
-  assert.ok(!log_hexify);
-  assert.ok(!log_binary);
+  assert.ok(log_hexify);
+  assert.ok(log_binary);
 })();
 
 (function test_should_throw_when_numeric_flags_are_not_numbers() {
@@ -75,6 +75,6 @@ const empty_argv = ['n', 'e'];
   assert.equal(1, listen_port);
   assert.equal('h', remote_host);
   assert.equal(2, remote_port);
-  assert.ok(log_hexify);
-  assert.ok(log_binary);
+  assert.ok(!log_hexify);
+  assert.ok(!log_binary);
 })();

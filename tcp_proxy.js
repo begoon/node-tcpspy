@@ -1,8 +1,17 @@
 const net = require('net')
 const fs = require('fs')
 const hexify = require('./hexify')
+const parse_flags = require('./flags').parse;
 
 var connections_n = 0
+
+try {
+  var flags = parse_flags(process.argv);
+} catch (e) {
+  process.exit(1);
+}
+
+if (!flags) process.exit(2);
 
 function formatAddress(ip, port) {
   return ip.replace("::ffff:", "") + "(" + port + ")"
@@ -33,10 +42,8 @@ function connectionProcessor(localSocket)
   var conn_n = connections_n
   connections_n += 1
 
-  var targetPort = 21
-  var targetHost = 'speedtest.tele2.net'
-  targetPort = 80
-  targetHost = 'ipv4.download.thinkbroadband.com'
+  const targetPort = flags.remote_port;
+  const targetHost = flags.remote_host;
 
   var proxyInfo = formatAddress(localSocket.localAddress, localSocket.localPort)
   var originatorInfo = formatAddress(localSocket.remoteAddress, localSocket.remotePort)
@@ -61,7 +68,9 @@ function connectionProcessor(localSocket)
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Received (packet ${originatorToProxyPacketN}, offset ${originatorToProxyOffset}) ${n} byte(s) from ${originatorInfo}`)
     remoteSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${this.packet_n}) to ${targetInfo}`)
-      connectionConsole.log(hexify.hexify(buffer, this.offset))
+      if (flags.log_hexify) {
+        connectionConsole.log(hexify.hexify(buffer, this.offset))
+      }
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Saved (packet ${this.packet_n})`)
     }.bind({
       packet_n: originatorToProxyPacketN,
@@ -71,7 +80,9 @@ function connectionProcessor(localSocket)
     originatorToProxyOffset += n
   })
 
-  localSocket.pipe(fs.createWriteStream(originatorFilename + '_'));
+  if (flags.log_binary) {
+    localSocket.pipe(fs.createWriteStream(originatorFilename));
+  }
 
   localSocket.on('end', () => {
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Disconnected`)
@@ -107,7 +118,9 @@ function connectionProcessor(localSocket)
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Received (packet ${targetToProxyPacketN}, offset ${targetToProxyOffset}) ${n} byte(s) from ${targetInfo}`)
     localSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${this.packet_n}) to ${originatorInfo}`)
-      connectionConsole.log(hexify.hexify(buffer, this.offset))
+      if (flags.log_hexify) {
+        connectionConsole.log(hexify.hexify(buffer, this.offset))
+      }
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Saved (packet ${this.packet_n})`)
     }.bind({
       packet_n: targetToProxyPacketN,
@@ -117,7 +130,9 @@ function connectionProcessor(localSocket)
     targetToProxyOffset += n
   })
 
-  remoteSocket.pipe(fs.createWriteStream(targetFilename + '_'));
+  if (flags.log_binary) {
+    remoteSocket.pipe(fs.createWriteStream(targetFilename));
+  }
 
   remoteSocket.on('end', () => {
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Disconnected`)
@@ -139,6 +154,7 @@ server.on('error', (err) => {
   console.log(`Server error: {err}`)
 })
 
-server.listen(8888, () => {
-  console.log('Listening')
+server.listen(flags.listen_port, () => {
+  console.log(flags);
+  console.log(`Listening on port ${flags.listen_port}, target ${flags.remote_host}:${flags.remote_port}`)
 })

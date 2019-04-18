@@ -20,11 +20,11 @@ Options:
 var remote_host = remote_port = false;
 var listen_port = false;
 
-var log_binary = true;
-var log_hexify = true;
-
 function parse(process_argv) {
-  let flags = {};
+  let flags = {
+    log_binary: true,
+    log_hexify: true
+  };
   const { node, exe, args } = argv.parse(process_argv);
   for (const [arg, value] of Object.entries(args)) {
     switch (arg) {
@@ -40,10 +40,10 @@ function parse(process_argv) {
       case "-c":
         break;
       case "-b":
-        flags.log_binary = true;
+        flags.log_binary = false;
         break;
       case "-h":
-        flags.log_hexify = true;
+        flags.log_hexify = false;
         break;
       case "-v":
         usage(node, exe);
@@ -56,7 +56,6 @@ function parse(process_argv) {
     assert.ok(flags.remote_port, "remote port is not given");
   } catch (e) {
     console.log(e.toString());
-    usage();
     throw e;
   }
   return flags;
