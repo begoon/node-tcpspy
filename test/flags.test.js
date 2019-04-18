@@ -3,15 +3,15 @@ const flags = require('../flags');
 const empty_argv = ['n', 'e'];
 
 describe('intercept and mute console.log()', () => {
-  var original_log, logged_msg;
+  var original_log, mock_log;
 
   beforeAll(() => {
     original_log = console.log;
   });
 
   beforeEach(() => {
-    console.log = (msg) => { logged_msg = msg; };
-    logged_msg = "";
+    mock_log = jest.fn();
+    console.log = mock_log;
   });
 
   afterEach(() => {
@@ -27,7 +27,7 @@ describe('intercept and mute console.log()', () => {
     const args = flags.parse(argv);
 
     expect(args).toBeUndefined();
-    expect(logged_msg).toMatch('Usage: n e');
+    expect(mock_log.mock.calls[0][0]).toMatch('Usage: n e');
   });
 
   test('throw when numeric flags are not numbers', () => {
