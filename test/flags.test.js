@@ -2,27 +2,41 @@ const flags = require('../flags');
 
 const empty_argv = ['n', 'e'];
 
-test('throw without_mandatory flags', () => {
-  const log = console.log;
-  console.log = () =>{ };
+describe('intercept and mute console.log()', () => {
+  var original_log, logged_msg;
 
-  expect(() => flags.parse(empty_argv)).toThrow("listen port is not given");
+  beforeAll(() => {
+    original_log = console.log;
+  });
 
-  console.log = log;
-});
+  beforeEach(() => {
+    console.log = (msg) => { logged_msg = msg; };
+    logged_msg = "";
+  });
 
-test('return `undefined` on usage', () => {
-  const log = console.log;
-  let logged_msg = "";
-  console.log = (msg) =>{ logged_msg = msg; };
+  afterEach(() => {
+    console.log = original_log;
+  });
 
-  const argv = empty_argv.concat(['-v']);
-  const args = flags.parse(argv);
+  test('throw without_mandatory flags', () => {
+    expect(() => flags.parse(empty_argv)).toThrow("listen port is not given");
+  });
 
-  console.log = log;
+  test('return `undefined` on usage', () => {
+    const argv = empty_argv.concat(['-v']);
+    const args = flags.parse(argv);
 
-  expect(args).toBeUndefined();
-  expect(logged_msg).toMatch('Usage: n e');
+    expect(args).toBeUndefined();
+    expect(logged_msg).toMatch('Usage: n e');
+  });
+
+  test('throw when numeric flags are not numbers', () => {
+    const argv_listen_port = empty_argv.concat(['-l=ABC', '-a=h', '-p=1']);
+    expect(() => flags.parse(argv_listen_port)).toThrow("listen port is not given");
+
+    const argv_remote_port = empty_argv.concat(['-l=1', '-a=h', '-p=XYZ']);
+    expect(() => flags.parse(argv_remote_port)).toThrow("remote port is not given");
+  });
 });
 
 test('not throw when mandatory flags exist', () => {
@@ -36,19 +50,6 @@ test('set defaults for unset flags', () => {
 
   expect(log_hexify).toBeTruthy();
   expect(log_binary).toBeTruthy()
-});
-
-test('throw when numeric flags are not numbers', () => {
-  const log = console.log;
-  console.log = () =>{ };
-
-  const argv_listen_port = empty_argv.concat(['-l=ABC', '-a=h', '-p=1']);
-  expect(() => flags.parse(argv_listen_port)).toThrow("listen port is not given");
-
-  const argv_remote_port = empty_argv.concat(['-l=1', '-a=h', '-p=XYZ']);
-  expect(() => flags.parse(argv_remote_port)).toThrow("remote port is not given");
-
-  console.log = log;
 });
 
 test('parse flags', () => {
