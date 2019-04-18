@@ -62,7 +62,6 @@ function connectionProcessor(localSocket)
     remoteSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${this.packet_n}) to ${targetInfo}`)
       connectionConsole.log(hexify.hexify(buffer, this.offset))
-      fs.appendFileSync(originatorFilename, buffer);
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Saved (packet ${this.packet_n})`)
     }.bind({
       packet_n: originatorToProxyPacketN,
@@ -71,6 +70,8 @@ function connectionProcessor(localSocket)
     originatorToProxyPacketN += 1
     originatorToProxyOffset += n
   })
+
+  localSocket.pipe(fs.createWriteStream(originatorFilename + '_'));
 
   localSocket.on('end', () => {
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Disconnected`)
@@ -107,7 +108,6 @@ function connectionProcessor(localSocket)
     localSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${this.packet_n}) to ${originatorInfo}`)
       connectionConsole.log(hexify.hexify(buffer, this.offset))
-      fs.appendFileSync(targetFilename, buffer)
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Saved (packet ${this.packet_n})`)
     }.bind({
       packet_n: targetToProxyPacketN,
@@ -116,6 +116,8 @@ function connectionProcessor(localSocket)
     targetToProxyPacketN += 1
     targetToProxyOffset += n
   })
+
+  remoteSocket.pipe(fs.createWriteStream(targetFilename + '_'));
 
   remoteSocket.on('end', () => {
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Disconnected`)
