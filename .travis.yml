@@ -8,7 +8,7 @@ script:
   - node flags_test.js
   - node hexify_benchmark.js
   - npm install
-  - npm run test
+  - npm test
 notifications:
   email:
     recipients:
