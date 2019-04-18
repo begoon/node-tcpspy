@@ -7,7 +7,7 @@ script:
   - node argv_test.js
   - node flags_test.js
   - node hexify_benchmark.js
-  - npm install --save-dev jest
+  - npm install
   - npm run test
 notifications:
   email:
