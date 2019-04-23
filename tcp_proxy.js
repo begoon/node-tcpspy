@@ -41,32 +41,32 @@ function formatBinaryLogFilename(fromInfo, toInfo, conn_n) {
 
 function connectionProcessor(localSocket)
 {
-  var conn_n = connections_n
+  const conn_n = connections_n
   connections_n += 1
 
   const targetPort = flags.remote_port;
   const targetHost = flags.remote_host;
 
-  var proxyInfo = formatAddress(localSocket.localAddress, localSocket.localPort)
-  var originatorInfo = formatAddress(localSocket.remoteAddress, localSocket.remotePort)
-  var targetInfo = formatAddress(targetHost, targetPort)
+  const proxyInfo = formatAddress(localSocket.localAddress, localSocket.localPort)
+  const originatorInfo = formatAddress(localSocket.remoteAddress, localSocket.remotePort)
+  const targetInfo = formatAddress(targetHost, targetPort)
 
-  var consoleFilename = formatConsoleFilename(originatorInfo, targetInfo, conn_n)
-  var connectionConsole = new console.Console({stdout: fs.createWriteStream(consoleFilename)})
+  const consoleFilename = formatConsoleFilename(originatorInfo, targetInfo, conn_n)
+  const connectionConsole = new console.Console({stdout: fs.createWriteStream(consoleFilename)})
 
   console.log(`Connection #${conn_n} accepted on ${proxyInfo} from=${originatorInfo} ${consoleFilename}`)
 
-  var originatorToProxyPrefix = `${originatorInfo} to ${proxyInfo} >>`
+  const originatorToProxyPrefix = `${originatorInfo} to ${proxyInfo} >>`
 
   connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Reading from ${originatorInfo} by ${proxyInfo} started`)
 
   var originatorToProxyPacketN = 0
   var originatorToProxyOffset = 0
 
-  var originatorFilename = formatBinaryLogFilename(proxyInfo, originatorInfo, conn_n)
+  const originatorFilename = formatBinaryLogFilename(proxyInfo, originatorInfo, conn_n)
 
   localSocket.on('data', function(buffer) {
-    let n = buffer.length
+    const n = buffer.length
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Received (packet ${originatorToProxyPacketN}, offset ${originatorToProxyOffset}) ${n} byte(s) from ${originatorInfo}`)
     remoteSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${this.packet_n}) to ${targetInfo}`)
@@ -99,11 +99,11 @@ function connectionProcessor(localSocket)
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} ERROR: [${error}]`)
   })
 
-  var targetToProxyPrefix = `${targetInfo} to ${proxyInfo} <<`
+  const targetToProxyPrefix = `${targetInfo} to ${proxyInfo} <<`
   var targetToProxyPacketN = 0
   var targetToProxyOffset = 0
 
-  var targetFilename = formatBinaryLogFilename(proxyInfo, targetInfo, conn_n)
+  const targetFilename = formatBinaryLogFilename(proxyInfo, targetInfo, conn_n)
 
   var remoteSocket = new net.Socket()
   remoteSocket.connect(targetPort, targetHost, function() {
@@ -116,7 +116,7 @@ function connectionProcessor(localSocket)
   })
 
   remoteSocket.on('data', function(buffer) {
-    let n = buffer.length
+    const n = buffer.length
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Received (packet ${targetToProxyPacketN}, offset ${targetToProxyOffset}) ${n} byte(s) from ${targetInfo}`)
     localSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${this.packet_n}) to ${originatorInfo}`)
