@@ -1,3 +1,5 @@
+'use strict';
+
 const net = require('net')
 const fs = require('fs')
 const hexify = require('./hexify')
@@ -64,7 +66,7 @@ function connectionProcessor(localSocket)
   var originatorFilename = formatBinaryLogFilename(proxyInfo, originatorInfo, conn_n)
 
   localSocket.on('data', function(buffer) {
-    n = buffer.length
+    let n = buffer.length
     connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Received (packet ${originatorToProxyPacketN}, offset ${originatorToProxyOffset}) ${n} byte(s) from ${originatorInfo}`)
     remoteSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Sent (packet ${this.packet_n}) to ${targetInfo}`)
@@ -114,7 +116,7 @@ function connectionProcessor(localSocket)
   })
 
   remoteSocket.on('data', function(buffer) {
-    n = buffer.length
+    let n = buffer.length
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Received (packet ${targetToProxyPacketN}, offset ${targetToProxyOffset}) ${n} byte(s) from ${targetInfo}`)
     localSocket.write(buffer, 0, function() {
       connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Sent (packet ${this.packet_n}) to ${originatorInfo}`)

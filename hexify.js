@@ -1,3 +1,5 @@
+'use strict';
+
 var hexify_width = 16
 var offset_width = 8
 

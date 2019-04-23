@@ -1,3 +1,5 @@
+'use strict';
+
 const assert = require('assert').strict;
 const argv = require('./argv');
 
@@ -17,7 +19,7 @@ Options:
 `
 )}
 
-var remote_host = remote_port = false;
+var remote_host = false, remote_port = false;
 var listen_port = false;
 
 function parse(process_argv) {

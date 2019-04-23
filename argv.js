@@ -1,3 +1,5 @@
+'use strict';
+
 const basename = require('path').basename;
 
 function parse(argv) {
