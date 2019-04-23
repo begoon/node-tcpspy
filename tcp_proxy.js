@@ -5,7 +5,7 @@ const fs = require('fs')
 const hexify = require('./hexify')
 const parse_flags = require('./flags').parse;
 
-var connections_n = 0
+let connections_n = 0
 
 try {
   var flags = parse_flags(process.argv);
@@ -60,8 +60,8 @@ function connectionProcessor(localSocket)
 
   connectionConsole.log(`${formatNow()} ${originatorToProxyPrefix} Reading from ${originatorInfo} by ${proxyInfo} started`)
 
-  var originatorToProxyPacketN = 0
-  var originatorToProxyOffset = 0
+  let originatorToProxyPacketN = 0
+  let originatorToProxyOffset = 0
 
   const originatorFilename = formatBinaryLogFilename(proxyInfo, originatorInfo, conn_n)
 
@@ -100,12 +100,12 @@ function connectionProcessor(localSocket)
   })
 
   const targetToProxyPrefix = `${targetInfo} to ${proxyInfo} <<`
-  var targetToProxyPacketN = 0
-  var targetToProxyOffset = 0
+  let targetToProxyPacketN = 0
+  let targetToProxyOffset = 0
 
   const targetFilename = formatBinaryLogFilename(proxyInfo, targetInfo, conn_n)
 
-  var remoteSocket = new net.Socket()
+  let remoteSocket = new net.Socket()
   remoteSocket.connect(targetPort, targetHost, function() {
     connectionConsole.log(`${formatNow()} ${targetToProxyPrefix} Reading from ${targetInfo} by ${proxyInfo}`)
   })
